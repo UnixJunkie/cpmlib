@@ -7,21 +7,21 @@ end
 
 module type ROC_FUNCTOR = functor (SL: SCORE_LABEL) ->
 sig
-  (* sort score labels putting high scores first *)
+  (** sort score labels putting high scores first *)
   val rank_order_by_score: SL.t list -> SL.t list
-  (* compute the cumulated actives curve given
-     an already sorted list of score labels *)
+  (** compute the cumulated actives curve given
+      an already sorted list of score labels *)
   val cumulated_actives_curve: SL.t list -> int list
-  (* compute Area Under the ROC curve given an already sorted list of
-     score labels *)
+  (** compute Area Under the ROC curve given an already sorted list of
+      score labels *)
   val fast_auc: SL.t list -> float
-  (* compute Area Under the ROC curve given an unsorted list
-     of score labels *)
+  (** compute Area Under the ROC curve given an unsorted list
+      of score labels *)
   val auc: SL.t list -> float
-  (* (early) enrichment factor at given threshold (database percentage)
-     given an unsorted list of score labels *)
+  (** (early) enrichment factor at given threshold (database percentage)
+      given an unsorted list of score labels *)
   val enrichment_factor: float -> SL.t list -> float
-  (* power metric at given threshold given an unsorted list of score labels *)
+  (** power metric at given threshold given an unsorted list of score labels *)
   val power_metric: float -> SL.t list -> float
 end
 
