@@ -9,7 +9,7 @@ module SL = struct
 end
 
 (* second, instantiate the ROC functor for your score_label module *)
-module ROC = ROC.Make (SL)
+module ROC = MakeROC.Make (SL)
 
 (* third, call any classification performance metric you need *)
 let main () =

@@ -9,7 +9,7 @@ Library cpm
   oflags:       -warn-error +26 -bin-annot
   Path:         src
   BuildDepends: batteries
-  modules:      ROC
+  modules:      MakeROC
 
 Executable test
   oflags:     -warn-error +26
