@@ -40,7 +40,7 @@ struct
 
   (* put molecules with the highest scores at the top of the list *)
   let rank_order_by_score (score_labels: SL.t list) =
-    L.sort (fun x y ->
+    L.stable_sort (fun x y ->
         BatFloat.compare (SL.get_score y) (SL.get_score x)
       ) score_labels
 
