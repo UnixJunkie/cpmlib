@@ -14,6 +14,9 @@ sig
   val cumulated_actives_curve: SL.t list -> int list
   (** compute Area Under the ROC curve given an already sorted list of
       score labels *)
+  val roc_curve: SL.t list -> (float * float) list
+  (** ROC curve (list of (FPR,TPR) values) corresponding to
+      those score labels *)
   val fast_auc: SL.t list -> float
   (** compute Area Under the ROC curve given an unsorted list
       of score labels *)
@@ -52,6 +55,24 @@ struct
         if SL.get_label sl then incr sum;
         !sum
       ) high_scores_first
+
+  let roc_curve (score_labels: SL.t list) =
+    let high_scores_first = rank_order_by_score score_labels in
+    let nacts = ref 0 in
+    let ndecs = ref 0 in
+    let nb_act_decs =
+      L.fold_left (fun acc x ->
+          if SL.get_label x then incr nacts
+          else incr ndecs;
+          (!nacts, !ndecs) :: acc
+        ) [(0, 0)] high_scores_first in
+    let nb_actives = float !nacts in
+    let nb_decoys = float !ndecs in
+    L.rev_map (fun (na, nd) ->
+        let tpr = float na /. nb_actives in
+        let fpr = float nd /. nb_decoys in
+        (fpr, tpr)
+      ) nb_act_decs
 
   (* area under the ROC curve given an already sorted list of score-labels *)
   let fast_auc high_scores_first =
@@ -157,7 +178,7 @@ struct
            sum = 0.0
            for rank in self.ranks:
                sum += math.exp( -alpha * rank / N )
-           ra = n/N   
+           ra = n/N
            factor1 = ra * math.sinh( alpha/2.0 )/( math.cosh(alpha/2.0) - math.cosh(alpha/2.0 - ra*alpha ) )
            factor2 = 1.0 / ra * (math.exp(alpha/N) - 1.0)/( 1.0 - math.exp(-alpha))
            constant = 1.0 / ( 1.0 - math.exp( alpha * ( 1.0 - ra ) ) )
