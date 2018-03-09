@@ -9,23 +9,43 @@ module type ROC_FUNCTOR = functor (SL: SCORE_LABEL) ->
 sig
   (** sort score labels putting high scores first *)
   val rank_order_by_score: SL.t list -> SL.t list
+
   (** compute the cumulated actives curve given
       an already sorted list of score labels *)
   val cumulated_actives_curve: SL.t list -> int list
+
   (** compute Area Under the ROC curve given an already sorted list of
       score labels *)
   val roc_curve: SL.t list -> (float * float) list
+
   (** ROC curve (list of (FPR,TPR) values) corresponding to
       those score labels *)
   val fast_auc: SL.t list -> float
+
   (** compute Area Under the ROC curve given an unsorted list
       of score labels *)
   val auc: SL.t list -> float
+
   (** (early) enrichment factor at given threshold (database percentage)
       given an unsorted list of score labels *)
   val enrichment_factor: float -> SL.t list -> float
+
+  (** [initial_enhancement a score_labels] will compute
+      S = sum_over_i (exp (-rank(active_i) / a))
+      given an unsorted list of score labels.
+      Robust Initial Enhancement (RIE) = S/<S> where <S> is
+      the average S for randomly ordered score labels.
+      RIE = 1.0 <=> random performance. Cf. DOI:10.1021/ci0100144
+      for details. *)
+  val initial_enhancement: float -> SL.t list -> float
+
+  (** same as [initial_enhancement] but does not reorder the list
+      of score_labels *)
+  val fast_initial_enhancement: float -> SL.t list -> float
+
   (** power metric at given threshold given an unsorted list of score labels *)
   val power_metric: float -> SL.t list -> float
+
   (** bedroc_auc at given alpha. Default alpha = 20.0. *)
   val bedroc_auc: ?alpha:float -> SL.t list -> float
 end
@@ -141,6 +161,18 @@ struct
     let _, top_actives_rate = actives_rate top_p_percent_molecules in
     let enr_rate = top_actives_rate /. rand_actives_rate in
     enr_rate
+
+  let fast_initial_enhancement (a: float) (l: SL.t list) =
+    L.fold_lefti (fun acc i x ->
+        if SL.get_label x then
+          let rank = float i in
+          acc +. exp (-. rank /. a)
+        else
+          acc
+      ) 0.0 l
+
+  let initial_enhancement (a: float) (l: SL.t list) =
+    fast_initial_enhancement a (rank_order_by_score l)
 
   let nb_actives l =
     float (L.length (L.filter SL.get_label l))
