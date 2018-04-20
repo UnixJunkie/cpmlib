@@ -11,7 +11,7 @@ module SL = struct
 end
 
 (* second, instantiate the ROC functor for your score_label module *)
-module ROC = MakeROC.Make (SL)
+module ROC = Cpm.MakeROC.Make (SL)
 
 let almost_equal epsilon x_curr x_ref =
   (x_ref -. epsilon <= x_curr) && (x_curr <= x_ref +. epsilon)
