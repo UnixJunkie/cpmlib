@@ -4,3 +4,6 @@
  ((name        cpm)
   (public_name cpm)
   (libraries (batteries))))
+
+(executable
+  ((name test)))
