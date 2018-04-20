@@ -1,26 +1,23 @@
 .PHONY: build config clean edit install uninstall reinstall tests
 
-build: config
-	obuild build
-
-config: cpm.obuild
-	obuild configure
+build:
+	jbuilder build @install
+	jbuilder build _build/default/src/test.exe
 
 clean:
-	obuild clean
+	jbuilder clean
 
 edit:
 	emacs src/*.ml &
 
-install:
-	opam remove cpm
-	opam pin -y add cpm ${PWD}
+install: build
+	jbuilder uninstall
+	jbuilder install
 
 uninstall:
-	opam remove cpm
-
-reinstall: uninstall install
+	jbuilder uninstall
 
 # unit tests
 tests:
-	./test
+	jbuilder build _build/default/src/test.exe
+	_build/default/src/test.exe
