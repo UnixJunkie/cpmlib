@@ -1,2 +1,2 @@
 # pmlib
-Classification Performance Metrics library
+Classification and Regression Performance Metrics library
