@@ -75,7 +75,11 @@ let r2 (l1: float list) (l2: float list): float =
 
 (** raw Regression Error Characteristic Curve
     (raw means not scaled by a null model)
-    [raw_REC_curve exp pred] *)
+    [raw_REC_curve exp pred]
+    Cf. Bi, J. and Bennett, K.P., 2003.
+    Regression error characteristic curves.
+    In Proceedings of the 20th international conference on machine learning
+    (ICML-03) (pp. 43-50). *)
 let raw_REC_curve (l1: float list) (l2: float list): (float * float) list =
   let array_filter_count p a =
     float
