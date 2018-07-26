@@ -3,6 +3,7 @@
    Varnek, A. ed., 2017. Tutorials in chemoinformatics. John Wiley & Sons. *)
 
 module A = BatArray
+module L = BatList
 
 let square x =
   x *. x
@@ -71,3 +72,32 @@ let r2 (l1: float list) (l2: float list): float =
         acc +. square (x -. avg_exp)
       ) 0.0 a1 in
   1.0 -. (sum_squared_diffs /. sum_squared_exp_diffs)
+
+(** raw Regression Error Characteristic Curve
+    (raw means not scaled by a null model)
+    [raw_REC_curve exp pred] *)
+let raw_REC_curve (l1: float list) (l2: float list): (float * float) list =
+  let array_filter_count p a =
+    float
+      (A.fold_left (fun acc x ->
+           if p x then acc + 1 else acc
+         ) 0 a) in
+  let a1 = A.of_list l1 in
+  let a2 = A.of_list l2 in
+  let n = A.length a1 in
+  let errors =
+    A.map2 (fun x y ->
+        abs_float (x -. y)
+      ) a1 a2 in
+  A.sort BatFloat.compare errors;
+  let max_err = errors.(n - 1) in
+  (* 100 steps on the X axis *)
+  let xs = L.frange 0.0 `To max_err 100 in
+  (* WARNING: not very efficient algorithm *)
+  let m = float n in
+  L.map (fun err_tol ->
+      let percent_ok =
+        let ok_count = array_filter_count (fun err -> err <= err_tol) errors in
+        (ok_count /. m) in
+      (err_tol, percent_ok)
+    ) xs
