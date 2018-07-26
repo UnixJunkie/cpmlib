@@ -3,7 +3,7 @@
 (library
  ((name        cpm)
   (public_name cpm)
-  (modules (MakeROC TopKeeper))
+  (modules (MakeROC TopKeeper RegrStats))
   (libraries (batteries))))
 
 (executable
