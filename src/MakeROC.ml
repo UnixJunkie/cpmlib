@@ -175,7 +175,11 @@ struct
     fast_initial_enhancement a (rank_order_by_score l)
 
   let nb_actives l =
-    float (L.length (L.filter SL.get_label l))
+    float
+      (L.fold_left (fun acc x ->
+           if SL.get_label x then acc + 1
+           else acc
+         ) 0 l)
 
   (* Cf. http://jcheminf.springeropen.com/articles/10.1186/s13321-016-0189-4
      for formulas:
