@@ -48,6 +48,13 @@ sig
 
   (** bedroc_auc at given alpha. Default alpha = 20.0. *)
   val bedroc_auc: ?alpha:float -> SL.t list -> float
+
+  (** Matthews' Correlation Coefficient (MCC)
+      use: [mcc classif_threshold score_labels].
+      scores >= threshold are predicted as targets;
+      scores < threshold are predicted as non targets. *)
+  val mcc: float -> SL.t list -> float
+
 end
 
 (* functions for ROC analysis *)
@@ -239,5 +246,42 @@ struct
     let factor2 = 1.0 /. r_a *. (exp (alpha /. n_tot) -. 1.0) /. (1.0 -. exp (-.alpha)) in
     let constant = 1.0 /. (1.0 -. exp (alpha *. ( 1.0 -. r_a))) in
     sum *. factor1 *. factor2 +. constant
+
+  (* accumulator type for the mcc metric *)
+  type mcc_accum = { tp: int ;
+                     tn: int ;
+                     fp: int ;
+                     fn: int }
+
+  (* Matthews' Correlation Coefficient (MCC)
+     Biblio: Matthews, B. W. (1975).
+     "Comparison of the predicted and observed secondary structure of T4 phage
+     lysozyme". Biochimica et Biophysica Acta (BBA)-Protein Structure,
+     405(2), 442-451. *)
+  let mcc classif_threshold score_labels =
+    (* formula:
+       mcc = (tp * tn - fp * fn) /
+             sqrt ((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)) *)
+    let acc =
+      L.fold_left (fun acc sl ->
+          let truth = SL.get_label sl in
+          let score = SL.get_score sl in
+          let prediction = score >= classif_threshold in
+          match (truth, prediction) with
+          | (true, true)   -> { acc with tp = acc.tp + 1 } (* TP *)
+          | (false, false) -> { acc with tn = acc.tn + 1 } (* TN *)
+          | (true, false)  -> { acc with fn = acc.fn + 1 } (* FN *)
+          | (false, true)  -> { acc with fp = acc.fp + 1 } (* FP *)
+        ) { tp = 0; tn = 0; fp = 0; fn = 0 } score_labels in
+    let tp = float acc.tp in
+    let tn = float acc.tn in
+    let fp = float acc.fp in
+    let fn = float acc.fn in
+    let denum' = (tp +. fp) *. (tp +. fn) *. (tn +. fp) *. (tn +. fn) in
+    if denum' = 0.0 then 0.0 (* div by 0 protection *)
+    else
+      let num = (tp *. tn) -. (fp *. fn) in
+      let denum = sqrt denum' in
+      num /. denum
 
 end
