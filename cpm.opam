@@ -6,8 +6,8 @@ homepage: "https://github.com/UnixJunkie/cpmlib"
 bug-reports: "https://github.com/UnixJunkie/cpmlib/issues"
 dev-repo: "https://github.com/UnixJunkie/cpmlib.git"
 license: "LGPL"
-build: ["jbuilder" "build" "-p" name "-j" jobs]
+build: ["dune" "build" "-p" name "-j" jobs]
 depends: [
-  "jbuilder" {build}
+  "dune" {build & >= "1.0"}
   "batteries"
 ]
