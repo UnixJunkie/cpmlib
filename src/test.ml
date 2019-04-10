@@ -55,6 +55,17 @@ let main () =
   assert(ROC.auc scores_02 = 0.76);
   (* cross validated with 'croc-bedroc < test.scored-label > /dev/null' *)
   assert(almost_equal 0.0001 (ROC.bedroc_auc scores_02) 0.88297);
+  (* wikipedia example:
+       https://en.wikipedia.org/wiki/Matthews_correlation_coefficient *)
+  let tp, fp, tn, fn = 90., 4., 1., 5. in
+  let scores_03 =
+    (List.init 90 (fun i -> create "" 1.0 i true)) @
+    (List.init 4 (fun i -> create "" 1.0 i false)) @
+    [create "" 0.0 0 false] @
+    (List.init 5 (fun i -> create "" 0.0 i true)) in
+  assert(ROC.mcc 0.5 scores_03 =
+         ((tp *. tn -. fp *. fn) /.
+          sqrt ((tp +. fp) *. (tp +. fn) *. (tn +. fp) *. (tn +. fn))));
   printf "all OK\n"
 
 let () = main ()
