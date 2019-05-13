@@ -10,6 +10,9 @@ sig
   (** sort score labels putting high scores first *)
   val rank_order_by_score: SL.t list -> SL.t list
 
+  (** in-place sort of score labels; putting high scores first *)
+  val rank_order_by_score_a: SL.t array -> unit
+
   (** compute the cumulated actives curve given
       an already sorted list of score labels *)
   val cumulated_actives_curve: SL.t list -> int list
@@ -25,6 +28,10 @@ sig
   (** compute Area Under the ROC curve given an unsorted list
       of score labels *)
   val auc: SL.t list -> float
+
+  (** compute Area Under the ROC curve given an unsorted array
+      of score labels; array will be sorted in-place *)
+  val auc_a: SL.t array -> float
 
   (** (early) enrichment factor at given threshold (database percentage)
       given an unsorted list of score labels *)
@@ -61,6 +68,7 @@ end
 module Make: ROC_FUNCTOR = functor (SL: SCORE_LABEL) ->
 struct
 
+  module A = Array
   module L = BatList
 
   let trapezoid_surface x1 x2 y1 y2 =
@@ -68,11 +76,16 @@ struct
     let height = 0.5 *. (y1 +. y2) in
     base *. height
 
+  let rev_compare_scores x y =
+    BatFloat.compare (SL.get_score y) (SL.get_score x)
+
   (* put molecules with the highest scores at the top of the list *)
   let rank_order_by_score (score_labels: SL.t list) =
-    L.stable_sort (fun x y ->
-        BatFloat.compare (SL.get_score y) (SL.get_score x)
-      ) score_labels
+    L.stable_sort rev_compare_scores score_labels
+
+  (* put molecules with the highest scores at the top of the array *)
+  let rank_order_by_score_a (score_labels: SL.t array) =
+    A.stable_sort rev_compare_scores score_labels
 
   (* compute the cumulated number of actives curve,
      given an already sorted list of score labels *)
@@ -101,37 +114,41 @@ struct
         (fpr, tpr)
       ) nb_act_decs
 
-  (* area under the ROC curve given an already sorted list of score-labels *)
-  let fast_auc high_scores_first =
+  let fast_auc_common fold_fun high_scores_first =
     let fp, tp, fp_prev, tp_prev, a, _p_prev =
-      L.fold_left
-        (fun (fp, tp, fp_prev, tp_prev, a, p_prev) sl ->
-           let si = SL.get_score sl in
-           let li = SL.get_label sl in
-           let new_a, new_p_prev, new_fp_prev, new_tp_prev =
-             if si <> p_prev then
-               a +. trapezoid_surface fp fp_prev tp tp_prev,
-               si,
-               fp,
-               tp
-             else
-               a,
-               p_prev,
-               fp_prev,
-               tp_prev
-           in
-           let new_tp, new_fp =
-             if li then
-               tp +. 1., fp
-             else
-               tp, fp +. 1.
-           in
-           (new_fp, new_tp, new_fp_prev, new_tp_prev, new_a, new_p_prev)
-        )
-        (0., 0., 0., 0., 0., neg_infinity)
+      fold_fun (fun (fp, tp, fp_prev, tp_prev, a, p_prev) sl ->
+          let si = SL.get_score sl in
+          let li = SL.get_label sl in
+          let new_a, new_p_prev, new_fp_prev, new_tp_prev =
+            if si <> p_prev then
+              a +. trapezoid_surface fp fp_prev tp tp_prev,
+              si,
+              fp,
+              tp
+            else
+              a,
+              p_prev,
+              fp_prev,
+              tp_prev
+          in
+          let new_tp, new_fp =
+            if li then
+              tp +. 1., fp
+            else
+              tp, fp +. 1.
+          in
+          (new_fp, new_tp, new_fp_prev, new_tp_prev, new_a, new_p_prev)
+        ) (0., 0., 0., 0., 0., neg_infinity)
         high_scores_first
     in
     (a +. trapezoid_surface fp fp_prev tp tp_prev) /. (fp *. tp)
+
+  (* area under the ROC curve given an already sorted list of score-labels *)
+  let fast_auc high_scores_first =
+    fast_auc_common L.fold_left high_scores_first
+
+  let fast_auc_a high_scores_first =
+    fast_auc_common A.fold_left high_scores_first
 
   (* area under the ROC curve given an unsorted list of score-labels
      TP cases have the label set to true
@@ -139,6 +156,10 @@ struct
   let auc (score_labels: SL.t list) =
     let high_scores_first = rank_order_by_score score_labels in
     fast_auc high_scores_first
+
+  let auc_a (score_labels: SL.t array) =
+    rank_order_by_score_a score_labels;
+    fast_auc_a score_labels
 
   (* proportion of actives given an unsorted list of score-labels
      TP cases have the label set to true
