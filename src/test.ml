@@ -40,6 +40,8 @@ let main () =
   assert(ROC.power_metric 0.35 scores = tpr_x /. (tpr_x +. fpr_x));
   assert(ROC.auc [("", 1.0, 0, true) ; (("", 0.9, 1, false))] = 1.0);
   assert(ROC.auc [("", 1.0, 0, false); (("", 0.9, 1, true))] = 0.0);
+  assert(ROC.auc_a [|("", 1.0, 0, true) ; (("", 0.9, 1, false))|] = 1.0);
+  assert(ROC.auc_a [|("", 1.0, 0, false); (("", 0.9, 1, true))|] = 0.0);
   let scores_02 =
     [ create "" 0.1 0 false;
       create "" 0.2 0 false;
@@ -53,6 +55,7 @@ let main () =
       create "" 1.0 0 true ] in
   (* cross validated with 'croc-curve < test.scored-label > /dev/null' *)
   assert(ROC.auc scores_02 = 0.76);
+  assert(ROC.auc_a (Array.of_list scores_02) = 0.76);
   (* cross validated with 'croc-bedroc < test.scored-label > /dev/null' *)
   assert(almost_equal 0.0001 (ROC.bedroc_auc scores_02) 0.88297);
   (* wikipedia example:
