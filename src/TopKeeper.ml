@@ -1,58 +1,58 @@
-(* keep only the top N scoring molecules in memory *)
+
+(* keep only the N top scoring elements in memory *)
 
 (* WARNING: we will have several molecules with equal scores when working
             on a huge database *)
 
 module FMap = BatMap.Float
 
-type t = {
-  (* molecule names sorted by
-     increasing scores; names for a given
-     score are in reverse order
-     of encounter (LIFO) until high_scores_first is called *)
-  queue: string list FMap.t;
+type 'a t = {
+  (* elements sorted by increasing scores; elements for a given
+     score are in reverse order of entry (LIFO);
+     until high_scores_first is called *)
+  queue: 'a list FMap.t;
   count: int;
-  max: int } (* max nb. of molecules to keep *)
+  max: int (* max nb. of molecules to keep *) }
 
-let create_priv queue count max: t =
+let create_priv queue count max: 'a t =
   { queue; count; max }
 
-let create (n: int): t =
+let create (n: int): 'a t =
   create_priv FMap.empty 0 n
 
-let insert_priv (score: float) (name: string) (map: string list FMap.t)
-  : string list FMap.t =
+let insert_priv (score: float) (element: 'a) (map: 'a list FMap.t)
+  : 'a list FMap.t =
   try (* score already seen *)
     let previous = FMap.find score map in
-    let current = name :: previous in
+    let current = element :: previous in
     FMap.add score current map
   with Not_found -> (* new score *)
-    FMap.add score [name] map
+    FMap.add score [element] map
 
-let add (name: string) (score: float) (acc: t): t =
+let add (element: 'a) (score: float) (acc: 'a t): 'a t =
   if acc.count < acc.max then (* not enough molecules yet *)
-    let new_map = insert_priv score name acc.queue in
+    let new_map = insert_priv score element acc.queue in
     create_priv new_map (acc.count + 1) acc.max
   else (* enough molecules already *)
-    let (min_score, min_names), rest = FMap.pop_min_binding acc.queue in
+    let (min_score, min_elements), rest = FMap.pop_min_binding acc.queue in
     if score > min_score then
-      match min_names with
+      match min_elements with
       | [] -> assert(false) (* not supposed to happen *)
       | [_one] -> (* forget it and add new *)
-        let new_map = insert_priv score name rest in
+        let new_map = insert_priv score element rest in
         create_priv new_map acc.count acc.max
       | _one :: others -> (* forget one and add new *)
         let new_map = FMap.add min_score others rest in
-        let new_map = insert_priv score name new_map in
+        let new_map = insert_priv score element new_map in
         create_priv new_map acc.count acc.max
     else
       acc
 
-let high_scores_first (acc: t): (float * string) list =
+let high_scores_first (acc: 'a t): (float * 'a) list =
   (* put back scores in decreasing order *)
-  FMap.fold (fun score names acc1 ->
-      (* put back names in encounter order *)
-      List.fold_left (fun acc2 name ->
-          (score, name) :: acc2
-        ) acc1 names
+  FMap.fold (fun score elements acc1 ->
+      (* put back elements in order of encounter *)
+      List.fold_left (fun acc2 element ->
+          (score, element) :: acc2
+        ) acc1 elements
     ) acc.queue []
