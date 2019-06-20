@@ -1,18 +1,18 @@
 (* keep only the top N scoring molecules in memory *)
 
-(* FBR: add .mli file *)
-
 (* WARNING: we will have several molecules with equal scores when working
             on a huge database *)
 
-module FMap = BatMap.Make(BatFloat)
+module FMap = BatMap.Float
 
-type t = { queue: string list FMap.t; (* molecule names sorted by
-                                         increasing scores; names for a given
-                                         score are in reverse order
-                                         of encounter (LIFO) until high_scores_first is called *)
-           count: int;
-           max: int } (* max nb. of molecules to keep *)
+type t = {
+  (* molecule names sorted by
+     increasing scores; names for a given
+     score are in reverse order
+     of encounter (LIFO) until high_scores_first is called *)
+  queue: string list FMap.t;
+  count: int;
+  max: int } (* max nb. of molecules to keep *)
 
 let create_priv queue count max: t =
   { queue; count; max }
