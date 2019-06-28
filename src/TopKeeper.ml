@@ -1,58 +1,99 @@
 
-(* keep only the N top scoring elements in memory *)
+(* Keep only the N top scoring elements in memory.
+   WARNING: we will have several elements with equal scores when screening
+            a huge database *)
 
-(* WARNING: we will have several molecules with equal scores when working
-            on a huge database *)
+module L = List
 
-module FMap = BatMap.Float
+type 'a t = { max_size: int; (* max number of (top scoring) elements *)
+              mutable curr_size: int; (* how many elts currently *)
+              mutable min_score: float;
+              (* For a given score, elements are in LIFO order *)
+              mutable elements: (float * 'a list) list }
 
-type 'a t = {
-  (* elements sorted by increasing scores; elements for a given
-     score are in reverse order of entry (LIFO);
-     until high_scores_first is called *)
-  queue: 'a list FMap.t;
-  count: int;
-  max: int (* max nb. of molecules to keep *) }
+(* this does not update the count, on purpose because drop_lowest_score
+ * is called when there is one score too much *)
+let drop_lowest_score t =
+  match t.elements with
+  | [] -> assert(false)
+  | (score, elts) :: rest ->
+    match elts with
+    | [] -> assert(false)
+    | [_x] ->
+      (* this whole score class is dropped, since it has no more members *)
+      t.elements <- rest
+    | (_x :: y :: zs) ->
+      (* just drop the last element that came in with that score *)
+      t.elements <- (score, y :: zs) :: rest
 
-let create_priv queue count max: 'a t =
-  { queue; count; max }
+(* peek at the currently known min score *)
+let peek_score t = match t.elements with
+  | [] -> assert(false)
+  | (score, _elts) :: _rest -> score
 
-let create (n: int): 'a t =
-  create_priv FMap.empty 0 n
+let insert t score x =
+  let rec loop acc = function
+    | [] -> L.rev_append acc [(score, [x])]
+    | (score', elts) :: rest ->
+      if score' < score then
+        loop ((score', elts) :: acc) rest
+      else if score' = score then
+        L.rev_append acc ((score', x :: elts) :: rest)
+      else (* score' > score *)
+        L.rev_append acc ((score, [x]) :: (score', elts) :: rest)
+  in
+  t.elements <- loop [] t.elements
 
-let insert_priv (score: float) (element: 'a) (map: 'a list FMap.t)
-  : 'a list FMap.t =
-  try (* score already seen *)
-    let previous = FMap.find score map in
-    let current = element :: previous in
-    FMap.add score current map
-  with Not_found -> (* new score *)
-    FMap.add score [element] map
+let get_min_score t =
+  t.min_score
 
-let add (element: 'a) (score: float) (acc: 'a t): 'a t =
-  if acc.count < acc.max then (* not enough molecules yet *)
-    let new_map = insert_priv score element acc.queue in
-    create_priv new_map (acc.count + 1) acc.max
-  else (* enough molecules already *)
-    let (min_score, min_elements), rest = FMap.pop_min_binding acc.queue in
-    if score > min_score then
-      match min_elements with
-      | [] -> assert(false) (* not supposed to happen *)
-      | [_one] -> (* forget it and add new *)
-        let new_map = insert_priv score element rest in
-        create_priv new_map acc.count acc.max
-      | _one :: others -> (* forget one and add new *)
-        let new_map = FMap.add min_score others rest in
-        let new_map = insert_priv score element new_map in
-        create_priv new_map acc.count acc.max
-    else
-      acc
+let get_curr_size t =
+  t.curr_size
 
-let high_scores_first (acc: 'a t): (float * 'a) list =
-  (* put back scores in decreasing order *)
-  FMap.fold (fun score elements acc1 ->
-      (* put back elements in order of encounter *)
-      List.fold_left (fun acc2 element ->
-          (score, element) :: acc2
-        ) acc1 elements
-    ) acc.queue []
+let get_max_size t =
+  t.max_size
+
+(* when we insert an element *)
+let update_bound t score =
+  if score < t.min_score then
+    t.min_score <- score
+
+(* after we drop one *)
+let recompute_bound t =
+  t.min_score <- peek_score t
+
+let create (max_size: int): 'a t =
+  assert(max_size > 0);
+  let curr_size = 0 in
+  let min_score = max_float in
+  let elements = [] in
+  { max_size; curr_size; elements; min_score }
+
+let add (t: 'a t) (score: float) (x: 'a): unit =
+  if t.curr_size < t.max_size then
+    begin
+      (* don't filter, as long as there are not enough elements *)
+      insert t score x;
+      t.curr_size <- t.curr_size + 1;
+      update_bound t score
+    end
+  else
+    begin
+      (* enforce data structure invariant *)
+      assert(t.curr_size = t.max_size);
+      if score > t.min_score then
+        begin
+          insert t score x;
+          drop_lowest_score t;
+          recompute_bound t
+        end
+    end
+
+let high_scores_first (t: 'a t): (float * 'a) list =
+  (* put scores in decreasing order *)
+  L.fold_left (fun acc1 (score, elts) ->
+      (* put back elements in FIFO order *)
+      L.fold_left (fun acc2 x ->
+          (score, x) :: acc2
+        ) acc1 elts
+    ) [] t.elements
