@@ -1,6 +1,8 @@
 
 open Printf
 
+module L = BatList
+
 (* Example usage *)
 
 (* first, define your score_label module *)
@@ -78,10 +80,17 @@ let main () =
   Top.add top3 4. 'b';
   Top.add top3 5. 'a';
   assert(Top.high_scores_first top3 = [(5., 'a'); (4., 'd'); (4., 'b')]);
-  (* FBR: put a much more violent test.
-   *      - generate 1000 rand floats
-   *      - ask for the top 50
-   *      - check they are indeed the top 50 using inplace_sort of a list *)
+  Random.self_init ();
+  let top50 = Top.create 50 in
+  let rands = L.init 1000 (fun _ -> Random.float 1.0) in
+  L.iter (fun rand ->
+      Top.add top50 rand rand
+    ) rands;
+  let top_scores = Top.high_scores_first top50 in
+  let reference =
+    let l = L.take 50 (L.stable_sort (fun x y -> compare y x) rands) in
+    L.combine l l in
+  assert(top_scores = reference);
   printf "all OK\n"
 
 let () = main ()
