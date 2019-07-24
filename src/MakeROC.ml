@@ -133,37 +133,45 @@ struct
         (fpr, tpr)
       ) nb_act_decs
 
-  let precision tp fp =
-    tp /. (tp +. fp)
-
-  let recall tp fn =
-    tp /. (tp +. fn)
-
+  (* Saito, T., & Rehmsmeier, M. (2015).
+     The precision-recall plot is more informative than the ROC plot when
+     evaluating binary classifiers on imbalanced datasets.
+     PloS one, 10(3), e0118432. *)
+  (* Davis, J., & Goadrich, M. (2006, June).
+     The relationship between Precision-Recall and ROC curves.
+     In Proceedings of the 23rd international conference on Machine learning
+     (pp. 233-240). ACM. *)
   let pr_curve (score_labels: SL.t list) =
-    let uniq_scores =
+    let precision tp fp =
+      tp /. (tp +. fp) in
+    let recall tp fn =
+      tp /. (tp +. fn) in
+    let negate p x =
+      not (p x) in
+    let high_scores_first_uniq =
       let all_scores = L.map SL.get_score score_labels in
       L.sort_uniq (fun x y -> BatFloat.compare y x) all_scores in
+    (* L.iter (Printf.printf "threshold: %f\n") high_scores_first_uniq; *)
     let high_scores_first = rank_order_by_score score_labels in
     let before = ref [] in
     let after = ref high_scores_first in
-    let res = ref [] in
-    L.iter (fun threshold ->
-        let higher, lower =
-          L.partition_while (fun x -> (SL.get_score x) >= threshold) !after in
-        before := L.rev_append higher !before;
-        after := lower;
-        (* TP <=> (score >= t) && label *)
-        let tp = float (L.filter_count (SL.get_label) !before) in
-        (* FN <=> (score < t) && label *)
-        let fn = float (L.filter_count (SL.get_label) !after) in
-        (* FP <=> (score >= t) && (not label) *)
-        let fp =
-          float (L.filter_count (fun x -> not (SL.get_label x)) !before) in
-        let reca = recall tp fn in
-        let prec = precision tp fp in
-        res := (reca, prec) :: !res
-      ) uniq_scores;
-    L.rev !res
+    let res =
+      L.map (fun threshold ->
+          let higher, lower =
+            L.partition_while (fun x -> (SL.get_score x) >= threshold) !after in
+          before := L.rev_append higher !before;
+          after := lower;
+          (* TP <=> (score >= t) && label *)
+          let tp = float (L.filter_count (SL.get_label) !before) in
+          (* FN <=> (score < t) && label *)
+          let fn = float (L.filter_count (SL.get_label) !after) in
+          (* FP <=> (score >= t) && (not label) *)
+          let fp = float (L.filter_count (negate SL.get_label) !before) in
+          let r = recall tp fn in
+          let p = precision tp fp in
+          (r, p)
+        ) high_scores_first_uniq in
+    (0.0, 1.0) :: res (* add missing first point *)
 
   let fast_auc_common fold_fun high_scores_first =
     let fp, tp, fp_prev, tp_prev, a, _p_prev =
