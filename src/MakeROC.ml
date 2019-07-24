@@ -244,13 +244,16 @@ struct
     tpr_x /. (tpr_x +. fpr_x)
 
   (* formula comes from
-     "Evaluating Virtual Screening Methods:  Good and Bad Metrics for the “Early Recognition” Problem"
+     "Evaluating Virtual Screening Methods:
+     Good and Bad Metrics for the “Early Recognition” Problem"
      Jean-François Truchon * and Christopher I. Bayly. DOI: 10.1021/ci600426e
      Reference implementation in Python:
      ---
      def calculateBEDROC(self, alpha = 20.0 ):
            if alpha < 0.00001:
-               os.stderr.write( "In method calculatBEDROC, the alpha parameter argument must be greater than zero." )
+               os.stderr.write( "In method calculatBEDROC,
+                                 the alpha parameter argument must be
+                                 greater than zero." )
                sys.exit(1)
            N = float( self.getNbrTotal() )
            n = float( self.getNbrActives() )
@@ -258,8 +261,11 @@ struct
            for rank in self.ranks:
                sum += math.exp( -alpha * rank / N )
            ra = n/N
-           factor1 = ra * math.sinh( alpha/2.0 )/( math.cosh(alpha/2.0) - math.cosh(alpha/2.0 - ra*alpha ) )
-           factor2 = 1.0 / ra * (math.exp(alpha/N) - 1.0)/( 1.0 - math.exp(-alpha))
+           factor1 =
+             ra * math.sinh( alpha/2.0 )/( math.cosh(alpha/2.0) -
+                                           math.cosh(alpha/2.0 - ra*alpha ) )
+           factor2 =
+             1.0 / ra * (math.exp(alpha/N) - 1.0)/( 1.0 - math.exp(-alpha))
            constant = 1.0 / ( 1.0 - math.exp( alpha * ( 1.0 - ra ) ) )
            bedroc = sum * factor1 * factor2 + constant
            return bedroc
@@ -278,8 +284,10 @@ struct
             acc
         ) 0.0 sorted in
     let r_a = n_act /. n_tot in
-    let factor1 = r_a *. sinh half_alpha /. (cosh half_alpha -. cosh (half_alpha -. r_a *. alpha)) in
-    let factor2 = 1.0 /. r_a *. (exp (alpha /. n_tot) -. 1.0) /. (1.0 -. exp (-.alpha)) in
+    let factor1 = r_a *. sinh half_alpha /.
+                  (cosh half_alpha -. cosh (half_alpha -. r_a *. alpha)) in
+    let factor2 = 1.0 /. r_a *.
+                  (exp (alpha /. n_tot) -. 1.0) /. (1.0 -. exp (-.alpha)) in
     let constant = 1.0 /. (1.0 -. exp (alpha *. ( 1.0 -. r_a))) in
     sum *. factor1 *. factor2 +. constant
 
