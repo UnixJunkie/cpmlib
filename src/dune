@@ -1,8 +1,8 @@
 (library
  (name cpm)
  (public_name cpm)
- (modules MakeROC TopKeeper RegrStats Utls)
- (private_modules Utls)
+ (modules MakeROC TopKeeper RegrStats Utls MyList)
+ (private_modules Utls MyList)
  (libraries batteries))
 
 (executable
