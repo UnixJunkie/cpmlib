@@ -1,4 +1,7 @@
 
+module A = Array
+module L = MyList
+
 module type SCORE_LABEL = sig
   type t
   val get_score: t -> float
@@ -17,12 +20,16 @@ sig
       an already sorted list of score labels *)
   val cumulated_actives_curve: SL.t list -> int list
 
-  (** compute Area Under the ROC curve given an already sorted list of
-      score labels *)
-  val roc_curve: SL.t list -> (float * float) list
-
   (** ROC curve (list of (FPR,TPR) values) corresponding to
       those score labels *)
+  val roc_curve: SL.t list -> (float * float) list
+
+  (** Precision Recall curve (list of (recall,precision) values)
+      corresponding to given score labels *)
+  val pr_curve: SL.t list -> (float * float) list
+
+  (** compute Area Under the ROC curve given an already sorted list of
+      score labels *)
   val fast_auc: SL.t list -> float
 
   (** compute Area Under the ROC curve given an unsorted list
@@ -83,9 +90,6 @@ end
 module Make: ROC_FUNCTOR = functor (SL: SCORE_LABEL) ->
 struct
 
-  module A = Array
-  module L = BatList
-
   let trapezoid_surface x1 x2 y1 y2 =
     let base = abs_float (x1 -. x2) in
     let height = 0.5 *. (y1 +. y2) in
@@ -128,6 +132,38 @@ struct
         let fpr = float nd /. nb_decoys in
         (fpr, tpr)
       ) nb_act_decs
+
+  let precision tp fp =
+    tp /. (tp +. fp)
+
+  let recall tp fn =
+    tp /. (tp +. fn)
+
+  let pr_curve (score_labels: SL.t list) =
+    let uniq_scores =
+      let all_scores = L.map SL.get_score score_labels in
+      L.sort_uniq (fun x y -> BatFloat.compare y x) all_scores in
+    let high_scores_first = rank_order_by_score score_labels in
+    let before = ref [] in
+    let after = ref high_scores_first in
+    let res = ref [] in
+    L.iter (fun threshold ->
+        let higher, lower =
+          L.partition_while (fun x -> (SL.get_score x) >= threshold) !after in
+        before := L.rev_append higher !before;
+        after := lower;
+        (* TP <=> (score >= t) && label *)
+        let tp = float (L.filter_count (SL.get_label) !before) in
+        (* FN <=> (score < t) && label *)
+        let fn = float (L.filter_count (SL.get_label) !after) in
+        (* FP <=> (score >= t) && (not label) *)
+        let fp =
+          float (L.filter_count (fun x -> not (SL.get_label x)) !before) in
+        let reca = recall tp fn in
+        let prec = precision tp fp in
+        res := (reca, prec) :: !res
+      ) uniq_scores;
+    L.rev !res
 
   let fast_auc_common fold_fun high_scores_first =
     let fp, tp, fp_prev, tp_prev, a, _p_prev =
