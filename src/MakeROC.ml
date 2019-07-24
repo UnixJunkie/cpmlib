@@ -16,15 +16,14 @@ sig
   (** in-place sort of score labels; putting high scores first *)
   val rank_order_by_score_a: SL.t array -> unit
 
-  (** compute the cumulated actives curve given
-      an already sorted list of score labels *)
+  (** cumulated actives curve given an already sorted list of score labels *)
   val cumulated_actives_curve: SL.t list -> int list
 
   (** ROC curve (list of (FPR,TPR) values) corresponding to
       those score labels *)
   val roc_curve: SL.t list -> (float * float) list
 
-  (** Precision Recall curve (list of (recall,precision) values)
+  (** Precision Recall curve (list of (recall,precision) pairs)
       corresponding to given score labels *)
   val pr_curve: SL.t list -> (float * float) list
 
@@ -32,11 +31,15 @@ sig
       score labels *)
   val fast_auc: SL.t list -> float
 
-  (** compute Area Under the ROC curve given an unsorted list
+  (** ROC AUC: Area Under the ROC curve given an unsorted list
       of score labels *)
   val auc: SL.t list -> float
 
-  (** compute Area Under the ROC curve given an unsorted array
+  (** PR AUC: Area Under the Precision-Recall curve given an unsorted list
+      of score labels *)
+  val pr_auc: SL.t list -> float
+
+  (** Area Under the ROC curve given an unsorted array
       of score labels; array will be sorted in-place *)
   val auc_a: SL.t array -> float
 
@@ -215,6 +218,16 @@ struct
   let auc (score_labels: SL.t list) =
     let high_scores_first = rank_order_by_score score_labels in
     fast_auc high_scores_first
+
+  let pr_auc (score_labels: SL.t list) =
+    let curve = pr_curve score_labels in
+    let rec loop acc = function
+      | [] -> acc
+      | [_] -> acc
+      | (x1, y1) :: (x2, y2) :: xs ->
+        let area = trapezoid_surface x1 x2 y1 y2 in
+        loop (area +. acc) ((x2, y2) :: xs) in
+    loop 0.0 curve
 
   let auc_a (score_labels: SL.t array) =
     rank_order_by_score_a score_labels;

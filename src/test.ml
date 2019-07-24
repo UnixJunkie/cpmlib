@@ -38,11 +38,6 @@ let main () =
       create ""  3.0 0 false;
       create ""  2.0 0 false;
       create ""  1.0 0 false ] in
-  let pr_points' = ROC.pr_curve scores in
-  L.iter (fun (x, y) ->
-      printf "PR: %f %f\n" x y
-    ) pr_points';
-  printf "---\n";
   let tpr_x = 3. /. 4. in
   let fpr_x = (5. -. 3.) /. (14. -. 4.) in
   assert(ROC.power_metric 0.35 scores = tpr_x /. (tpr_x +. fpr_x));
@@ -598,10 +593,8 @@ let main () =
       create "" 1. 0 true;
       create "" 0.66666667 0 false;
       create "" 0.66666667 0 false] in
-  let pr_points = ROC.pr_curve score_labs_py in
-  L.iter (fun (x, y) ->
-      printf "PR: %f %f\n" x y
-    ) pr_points;
+  let pr_auc = ROC.pr_auc score_labs_py in
+  assert(almost_equal 0.000001 pr_auc 0.891669);
   printf "all OK\n"
 
 let () = main ()
