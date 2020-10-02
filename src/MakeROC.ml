@@ -1,5 +1,5 @@
 
-module A = Array
+module A = BatArray
 module L = MyList
 
 module type SCORE_LABEL = sig
@@ -23,6 +23,9 @@ sig
       those score labels *)
   val roc_curve: SL.t list -> (float * float) list
 
+  (** same as [roc_curve] but for an already sorted array of score-labels *)
+  val fast_roc_curve_a: SL.t array -> (float * float) array
+
   (** Precision Recall curve (list of (recall,precision) pairs)
       corresponding to given score labels *)
   val pr_curve: SL.t list -> (float * float) list
@@ -40,8 +43,12 @@ sig
   val pr_auc: SL.t list -> float
 
   (** Area Under the ROC curve given an unsorted array
-      of score labels; array will be sorted in-place *)
+      of score labels; WARNING: array will be modified (sorted) *)
   val auc_a: SL.t array -> float
+
+  (** Area Under the ROC curve given an already sorted array
+      of score labels *)
+  val fast_auc_a: SL.t array -> float
 
   (** (early) enrichment factor at given threshold (database percentage)
       given an unsorted list of score labels *)
@@ -65,6 +72,15 @@ sig
 
   (** bedroc_auc at given alpha. Default alpha = 20.0. *)
   val bedroc_auc: ?alpha:float -> SL.t list -> float
+
+  (** bedroc_auc at given alpha for an array of score-labels.
+      Default alpha = 20.0.
+      WARNING: the array will be modified (sorted by decrasing scores)
+      if [sorted = false] which is the default. *)
+  val bedroc_auc_a: ?alpha:float -> ?sorted:bool -> SL.t array -> float
+
+  (** equivalent to [bedroc_auc_a ~alpha ~sorted:true arr]. *)
+  val fast_bedroc_auc_a: ?alpha:float -> SL.t array -> float
 
   (** Matthews' Correlation Coefficient (MCC)
       use: [mcc classif_threshold score_labels].
@@ -131,6 +147,23 @@ struct
     let nb_actives = float !nacts in
     let nb_decoys = float !ndecs in
     L.rev_map (fun (na, nd) ->
+        let tpr = float na /. nb_actives in
+        let fpr = float nd /. nb_decoys in
+        (fpr, tpr)
+      ) nb_act_decs
+
+  let fast_roc_curve_a (score_labels: SL.t array) =
+    let nacts = ref 0 in
+    let ndecs = ref 0 in
+    let nb_act_decs =
+      A.map (fun x ->
+          if SL.get_label x then incr nacts
+          else incr ndecs;
+          (!nacts, !ndecs)
+        ) score_labels in
+    let nb_actives = float !nacts in
+    let nb_decoys = float !ndecs in
+    A.map (fun (na, nd) ->
         let tpr = float na /. nb_actives in
         let fpr = float nd /. nb_decoys in
         (fpr, tpr)
@@ -281,6 +314,11 @@ struct
            else acc
          ) 0 l)
 
+  let nb_actives_a a =
+    let res = ref 0 in
+    A.iter (fun x -> if SL.get_label x then incr res) a;
+    !res
+
   (* Cf. http://jcheminf.springeropen.com/articles/10.1186/s13321-016-0189-4
      for formulas:
      The power metric: a new statistically robust enrichment-type metric for
@@ -326,20 +364,21 @@ struct
            constant = 1.0 / ( 1.0 - math.exp( alpha * ( 1.0 - ra ) ) )
            bedroc = sum * factor1 * factor2 + constant
            return bedroc
-    --- *)
-  let bedroc_auc ?alpha:(alpha = 20.0) (score_labels: SL.t list): float =
+     --- *)
+  let bedroc_auc_a ?alpha:(alpha = 20.0) ?sorted:(sorted = false)
+      (score_labels: SL.t array): float =
     let half_alpha = 0.5 *. alpha in
-    let n_tot = float (L.length score_labels) in
-    let n_act = nb_actives score_labels in
+    let n_tot = float (A.length score_labels) in
+    let n_act = float (nb_actives_a score_labels) in
+    (if not sorted then rank_order_by_score_a score_labels);
     let sum =
-      let sorted = rank_order_by_score score_labels in
-      L.fold_lefti (fun acc rank x ->
+      A.fold_lefti (fun acc rank x ->
           if SL.get_label x then
             (* ranks must start at 1 *)
             acc +. exp (-.alpha *. (1.0 +. float rank) /. n_tot)
           else
             acc
-        ) 0.0 sorted in
+        ) 0.0 score_labels in
     let r_a = n_act /. n_tot in
     let factor1 = r_a *. sinh half_alpha /.
                   (cosh half_alpha -. cosh (half_alpha -. r_a *. alpha)) in
@@ -347,6 +386,12 @@ struct
                   (exp (alpha /. n_tot) -. 1.0) /. (1.0 -. exp (-.alpha)) in
     let constant = 1.0 /. (1.0 -. exp (alpha *. ( 1.0 -. r_a))) in
     sum *. factor1 *. factor2 +. constant
+
+  let fast_bedroc_auc_a ?alpha:(alpha = 20.0) (score_labels: SL.t array) =
+    bedroc_auc_a ~alpha ~sorted:true score_labels
+
+  let bedroc_auc ?alpha:(alpha = 20.0) (score_labels: SL.t list): float =
+    bedroc_auc_a ~alpha (A.of_list score_labels)
 
   (* accumulator type for the mcc metric *)
   type mcc_accum = { tp: int ;
