@@ -54,6 +54,10 @@ sig
       given an unsorted list of score labels *)
   val enrichment_factor: float -> SL.t list -> float
 
+  (** (early) enrichment factor at given threshold (database percentage)
+      given an already sorted array of score labels *)
+  val fast_enrichment_factor: float -> SL.t array -> float
+
   (** [initial_enhancement a score_labels] will compute
       S = sum_over_i (exp (-rank(active_i) / a))
       given an unsorted list of score labels.
@@ -284,8 +288,7 @@ struct
     (nb_molecules, (float tp_count) /. (float nb_molecules))
 
   (* enrichment rate at x (e.g. x = 0.01 --> ER @ 1%) given a list
-     of unsorted score-labels
-     returns: (top_n, top_actives_rate, rand_actives_rate, enr_rate) *)
+     of unsorted score-labels *)
   let enrichment_factor (p: float) (score_labels: SL.t list) =
     let nb_molecules, rand_actives_rate = actives_rate score_labels in
     let top_n = BatFloat.round_to_int (p *. (float nb_molecules)) in
@@ -294,6 +297,27 @@ struct
     let _, top_actives_rate = actives_rate top_p_percent_molecules in
     let enr_rate = top_actives_rate /. rand_actives_rate in
     enr_rate
+
+  (* this should land in batteries, not here... *)
+  let array_filter_count p a =
+    let count = ref 0 in
+    A.iter (fun x ->
+        if p x then incr count
+      ) a;
+    !count
+
+  let array_actives_rate a =
+    let nb_actives = array_filter_count SL.get_label a in
+    let n = A.length a in
+    (float nb_actives) /. (float n)
+
+  let fast_enrichment_factor p score_labels =
+    let nb_molecules = A.length score_labels in
+    let rand_actives_rate = array_actives_rate score_labels in
+    let top_n = BatFloat.round_to_int (p *. (float nb_molecules)) in
+    let top_p_percent_molecules = A.sub score_labels 0 top_n in
+    let top_actives_rate = array_actives_rate top_p_percent_molecules in
+    (top_actives_rate /. rand_actives_rate)
 
   let fast_initial_enhancement (a: float) (l: SL.t list) =
     L.fold_lefti (fun acc i x ->
