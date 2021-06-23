@@ -53,11 +53,9 @@ let std_dev_res (l1: float list) (l2: float list): float =
       ) 0.0 a1 in
   sqrt (sum_squared_diffs /. (float (n - 2)))
 
-(** coefficient of determination
-    [r2 exp pred] *)
-let r2 (l1: float list) (l2: float list): float =
-  let a1 = A.of_list l1 in
-  let a2 = A.of_list l2 in
+(** coefficient of determination (for arrays)
+    [r2_a exp pred] *)
+let r2_a a1 a2 =
   let m = A.length a1 in
   let n = A.length a2 in
   assert(m = n);
@@ -72,6 +70,11 @@ let r2 (l1: float list) (l2: float list): float =
         acc +. square (x -. avg_exp)
       ) 0.0 a1 in
   1.0 -. (sum_squared_diffs /. sum_squared_exp_diffs)
+
+(** coefficient of determination
+    [r2 exp pred] *)
+let r2 (l1: float list) (l2: float list): float =
+  r2_a (A.of_list l1) (A.of_list l2)
 
 (** raw Regression Error Characteristic Curve
     (raw means not scaled by a null model)
