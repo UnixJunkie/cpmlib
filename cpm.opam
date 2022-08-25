@@ -8,7 +8,7 @@ license: "LGPL-2.0-or-later"
 build: ["dune" "build" "-p" name "-j" jobs]
 depends: [
   "dune" {>= "1.0"}
-  "batteries"
+  "batteries" {>= "2.4"}
   "ocaml"
 ]
 depopts: [
