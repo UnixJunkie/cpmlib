@@ -75,7 +75,7 @@ sig
   val power_metric: float -> SL.t list -> float
 
   (** power metric at given threshold for an already decr. sorted list of score labels *)
-  val fast_power_metric: float -> SL.t array -> float
+  val fast_power_metric_a: float -> SL.t array -> float
 
   (** bedroc_auc at given alpha. Default alpha = 20.0. *)
   val bedroc_auc: ?alpha:float -> SL.t list -> float
@@ -366,7 +366,7 @@ struct
     tpr_x /. (tpr_x +. fpr_x)
 
   (* Same as [power_metric], but for an already sorted array of score-labels. *)
-  let fast_power_metric (cutoff: float) (scores_tot: SL.t array): float =
+  let fast_power_metric_a (cutoff: float) (scores_tot: SL.t array): float =
     assert(cutoff > 0.0 && cutoff <= 1.0);
     let size_tot = float (A.length scores_tot) in
     let x = BatFloat.round (cutoff *. size_tot) in
