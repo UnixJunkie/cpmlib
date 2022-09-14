@@ -74,6 +74,9 @@ sig
   (** power metric at given threshold given an unsorted list of score labels *)
   val power_metric: float -> SL.t list -> float
 
+  (** power metric at given threshold for an already decr. sorted list of score labels *)
+  val power_metric_a: float -> SL.t array -> float
+
   (** bedroc_auc at given alpha. Default alpha = 20.0. *)
   val bedroc_auc: ?alpha:float -> SL.t list -> float
 
@@ -358,6 +361,20 @@ struct
     let scores_x = L.take size_x sorted in
     let actives_x = nb_actives scores_x in
     let actives_tot = nb_actives scores_tot in
+    let tpr_x = actives_x /. actives_tot in
+    let fpr_x = (x -. actives_x) /. (size_tot -. actives_tot) in
+    tpr_x /. (tpr_x +. fpr_x)
+
+  (* Same as [power_metric], but for an already sorted array of score-labels. *)
+  let power_metric_a (cutoff: float) (scores_tot: SL.t array): float =
+    assert(cutoff > 0.0 && cutoff <= 1.0);
+    let size_tot = float (A.length scores_tot) in
+    let x = BatFloat.round (cutoff *. size_tot) in
+    let size_x = int_of_float x in
+    assert(size_x >= 1);
+    let scores_x = A.sub scores_tot 0 size_x in
+    let actives_x = float (nb_actives_a scores_x) in
+    let actives_tot = float (nb_actives_a scores_tot) in
     let tpr_x = actives_x /. actives_tot in
     let fpr_x = (x -. actives_x) /. (size_tot -. actives_tot) in
     tpr_x /. (tpr_x +. fpr_x)
