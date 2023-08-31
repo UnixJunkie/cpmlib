@@ -23,6 +23,10 @@ sig
       those score labels *)
   val roc_curve: SL.t list -> (float * float) list
 
+  (** logAUC of ROC curve [log_AUC lambda roc_curve].
+      [lambda] must be small but > 0.0 (e.g. 0.001) *)
+  val log_AUC: float -> (float * float) list -> float
+
   (** same as [roc_curve] but for an already sorted array of score-labels *)
   val fast_roc_curve_a: SL.t array -> (float * float) array
 
@@ -158,6 +162,24 @@ struct
         let fpr = float nd /. nb_decoys in
         (fpr, tpr)
       ) nb_act_decs
+
+   (* $LogAUC_\lambda=\frac{\sum_{i}^{where~x_i\ge\lambda} (\log_{10} x_{i+1} - \log_{10} x_i)
+      (\frac{y_{i+1}+y_i}{2})}{\log_{10}\frac{1}{\lambda}}$ *)
+  let log_AUC (lambda: float) (roc: (float * float) list): float =
+    if lambda <= 0.0 then
+      failwith "MakeROC.logAUC: lambda <= 0.0"
+    else
+      let x_ge_lambda = L.drop_while (fun (x, _y) -> x < lambda) roc in
+      let res = ref 0.0 in
+      let rec loop = function
+        | [] | [_] -> ()
+        | (x_i, y_i) :: (x_j, y_j) :: xs ->
+          begin
+            res := !res +. (((log10 x_j) -. (log10 x_i)) *. (0.5 *. (y_i +. y_j)));
+            loop ((x_j, y_j) :: xs)
+          end in
+      loop x_ge_lambda;
+      !res /. (log10 (1. /. lambda))
 
   let fast_roc_curve_a (score_labels: SL.t array) =
     let nacts = ref 0 in
